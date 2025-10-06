@@ -144,7 +144,7 @@ elif menu == "🤖 Model Comparison":
     used to predict **Energy Deficit (MU)**.
     """)
 
-    model_results = pd.read_csv("model_comparison_results.csv")  # Replace with your file
+    model_results = pd.read_csv("model_comparison_results.xlsx")  # Replace with your file
     st.dataframe(model_results)
 
     fig = px.bar(
@@ -195,5 +195,6 @@ elif menu == "🔮 Prediction":
             input_df = pd.DataFrame([[energy_req, energy_avail]], columns=["energy_requirement_mu", "energy_availability_mu"])
             prediction = model.predict(input_df)[0]
             st.success(f"✅ Predicted Energy Deficit: **{prediction:.2f} MU**")
+
 
 
