@@ -16,7 +16,7 @@ from sklearn.metrics import accuracy_score, classification_report, mean_squared_
 # -------------------------------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_dataset.csv")
+    df = pd.read_csv("cleaned_dataset.xls")
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -172,3 +172,4 @@ elif choice == "K-Means Clustering":
 
 st.markdown("---")
 st.markdown("Made with ❤️ using **Streamlit** | Author: *Your Name*")
+
