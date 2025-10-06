@@ -176,10 +176,11 @@ elif menu == "🤖 ML Model Results":
     lr = LinearRegression()
     lr.fit(X_train_reg, y_train_reg)
     y_pred_lr = lr.predict(X_test_reg)
+    # Compute RMSE correctly
     rmse_lr = mean_squared_error(y_test_reg.astype(float), y_pred_lr.astype(float), squared=False)
     r2_lr = r2_score(y_test_reg, y_pred_lr)
     st.subheader("Linear Regression")
-    st.write("RMSE:", round(rmse_lr,2))
+    st.write("RMSE:", round(rmse_lr, 2))
     st.write("R² Score:", round(r2_lr,3))
     st.line_chart(pd.DataFrame({"Actual":y_test_reg.values,"Predicted":y_pred_lr}))
 
@@ -218,4 +219,5 @@ elif menu == "🔮 Prediction":
         lr_pred.fit(X_train_reg, y_train_reg)
         pred_deficit = lr_pred.predict(input_df)[0]
         st.success(f"Predicted Energy Deficit for {pred_state}, {pred_quarter}: **{pred_deficit:.2f} MU**")
+
 
