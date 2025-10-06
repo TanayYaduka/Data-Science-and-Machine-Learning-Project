@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score, classification_report, mean_squared_
 # -------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_dataset.csv")
+    df = pd.read_csv("cleaned_dataset.xls")
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -207,3 +207,4 @@ elif page == "Prediction Tool":
             pred = model.predict(input_data)
             result = "⚠️ Deficit Expected" if pred[0] == 1 else "✅ No Deficit"
             st.success(result)
+
