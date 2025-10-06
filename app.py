@@ -181,56 +181,73 @@ elif section == "📊 Exploratory Data Analysis":
     st.plotly_chart(fig_map, use_container_width=True)
 
 # ----------------------------
-# Section 3: ML Results
+# ML Algorithms / Model Results
 # ----------------------------
-elif section == "🤖 ML Results":
-    st.title("🤖 Machine Learning Results")
-    st.markdown("We show classification and regression results on the filtered dataset.")
+elif section == "🤖 ML Models":
+    st.title("🤖 ML Model Evaluation and Insights")
+    st.markdown("""
+    This section applies different ML algorithms to predict **Energy Deficit (MU)** 
+    based on **Energy Requirement** and **Energy Availability**.  
+    You can select the model(s) you want to evaluate.
+    """)
 
-    features = ["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"]
-    if not all(f in filtered_df.columns for f in features) or filtered_df.empty:
-        st.error("Filtered data is empty or missing required columns. Please adjust the filters.")
-    else:
-        X = filtered_df[features]
-        y_class = filtered_df["deficit_flag"]
-        y_reg = filtered_df["energy_deficit"]
+    model_choice = st.multiselect(
+        "Select ML Models to Evaluate:",
+        ["Linear Regression", "K-Nearest Neighbors (KNN)", "Naive Bayes", "Logistic Regression", "K-Means Clustering"],
+        default=["Linear Regression", "KNN"]
+    )
 
-        # KNN
-        st.subheader("🔹 K-Nearest Neighbors Classifier")
-        X_train, X_test, y_train, y_test = train_test_split(X, y_class, test_size=0.3, random_state=42)
-        knn = KNeighborsClassifier(n_neighbors=5)
-        knn.fit(X_train, y_train)
-        y_pred_knn = knn.predict(X_test)
-        st.write("Accuracy:", accuracy_score(y_test, y_pred_knn))
-        st.text(classification_report(y_test, y_pred_knn))
+    # Prepare features and target
+    X = df[["energy_requirement_mu", "energy_availability_mu"]]
+    y = df["energy_deficit"]
+    deficit_flag = (y > 0).astype(int)  # For classification models
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    X_train_clf, X_test_clf, y_train_clf, y_test_clf = train_test_split(X, deficit_flag, test_size=0.3, random_state=42)
 
-        # Naive Bayes
-        st.subheader("🔹 Naive Bayes Classifier")
-        nb = GaussianNB()
-        nb.fit(X_train, y_train)
-        y_pred_nb = nb.predict(X_test)
-        st.write("Accuracy:", accuracy_score(y_test, y_pred_nb))
-        st.text(classification_report(y_test, y_pred_nb))
+    for model in model_choice:
+        st.subheader(f"📌 {model} Results")
+        if model == "Linear Regression":
+            lr = LinearRegression()
+            lr.fit(X_train, y_train)
+            y_pred_lr = lr.predict(X_test)
+            st.write("RMSE:", round(mean_squared_error(y_test, y_pred_lr, squared=False), 2))
+            st.write("R² Score:", round(r2_score(y_test, y_pred_lr), 2))
+            st.line_chart(pd.DataFrame({"Actual": y_test.values, "Predicted": y_pred_lr}))
+            st.markdown("**Insight:** Linear Regression predicts the deficit based on energy requirement & availability. Good for overall trend analysis.")
 
-        # Linear Regression
-        st.subheader("🔹 Linear Regression")
-        X_train_lr, X_test_lr, y_train_lr, y_test_lr = train_test_split(X, y_reg, test_size=0.3, random_state=42)
-        lr = LinearRegression()
-        lr.fit(X_train_lr, y_train_lr)
-        y_pred_lr = lr.predict(X_test_lr)
-        st.write("RMSE:", mean_squared_error(y_test_lr, y_pred_lr, squared=False))
-        st.write("R² Score:", r2_score(y_test_lr, y_pred_lr))
-        st.line_chart(pd.DataFrame({"Actual":y_test_lr,"Predicted":y_pred_lr}))
+        elif model == "K-Nearest Neighbors (KNN)":
+            knn = KNeighborsClassifier(n_neighbors=5)
+            knn.fit(X_train_clf, y_train_clf)
+            y_pred_knn = knn.predict(X_test_clf)
+            st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_knn), 2))
+            st.text(classification_report(y_test_clf, y_pred_knn))
+            st.markdown("**Insight:** KNN works for classification of deficit presence (deficit or no deficit). Not suitable for exact deficit values.")
 
-        # K-Means
-        st.subheader("🔹 K-Means Clustering")
-        kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-        clusters = kmeans.fit_predict(X)
-        cluster_df = filtered_df.copy()
-        cluster_df["Cluster"] = clusters
-        st.dataframe(cluster_df[["state","energy_deficit","Cluster"]].head())
-        st.write("Cluster Centers:")
-        st.dataframe(pd.DataFrame(kmeans.cluster_centers_, columns=features))
+        elif model == "Naive Bayes":
+            nb = GaussianNB()
+            nb.fit(X_train_clf, y_train_clf)
+            y_pred_nb = nb.predict(X_test_clf)
+            st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_nb), 2))
+            st.text(classification_report(y_test_clf, y_pred_nb))
+            st.markdown("**Insight:** Naive Bayes can classify deficit occurrence, but continuous deficit prediction is not suitable.")
+
+        elif model == "Logistic Regression":
+            log_reg = LogisticRegression(max_iter=1000)
+            log_reg.fit(X_train_clf, y_train_clf)
+            y_pred_log = log_reg.predict(X_test_clf)
+            st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_log), 2))
+            st.text(classification_report(y_test_clf, y_pred_log))
+            st.markdown("**Insight:** Logistic Regression is for binary classification (deficit yes/no), not for predicting exact MU deficit.")
+
+        elif model == "K-Means Clustering":
+            kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+            clusters = kmeans.fit_predict(X)
+            st.write("Cluster Centers:")
+            st.dataframe(pd.DataFrame(kmeans.cluster_centers_, columns=X.columns))
+            cluster_df = X.copy()
+            cluster_df["Cluster"] = clusters
+            st.write(cluster_df.head())
+            st.markdown("**Insight:** K-Means groups similar energy patterns but does not predict exact deficit.")
 
 # ----------------------------
 # Section 4: Prediction
@@ -267,6 +284,7 @@ elif section == "🔮 Prediction":
             lr.fit(X, y)
             prediction = lr.predict(input_df)[0]
             st.success(f"✅ Predicted Energy Deficit for {pred_state} ({pred_quarter}): **{prediction:.2f} MU**")
+
 
 
 
