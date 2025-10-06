@@ -237,13 +237,35 @@ elif section == "🤖 ML Results":
 # ----------------------------
 elif section == "🔮 Prediction":
     st.title("🔮 Predict Energy Deficit")
-    st.markdown("Input values to predict Energy Deficit (MU).")
+    st.markdown("Input values to predict Energy Deficit (MU) for a specific region, state, and quarter.")
 
     with st.form("prediction_form"):
         c1, c2, c3 = st.columns(3)
         with c1:
             pred_region = st.selectbox("Select Region:", ["All"] + sorted(df["region"].unique()))
         with c2:
-            pred_state = st.selectbox("
-::contentReference[oaicite:0]{index=0}
- 
+            pred_state = st.selectbox("Select State:", ["All"] + sorted(df["state"].unique()))
+        with c3:
+            pred_quarter = st.selectbox("Select Quarter:", ["All"] + sorted(df["quarter"].unique()))
+
+        col1, col2 = st.columns(2)
+        with col1:
+            energy_req = st.number_input("Energy Requirement (MU)", min_value=0.0, step=100.0)
+        with col2:
+            energy_avail = st.number_input("Energy Availability (MU)", min_value=0.0, step=100.0)
+
+        submitted = st.form_submit_button("Predict")
+        if submitted:
+            # Create dataframe for prediction
+            input_df = pd.DataFrame([[energy_req, energy_avail]],
+                                    columns=["energy_requirement_mu", "energy_availability_mu"])
+            # Simple Linear Regression for prediction
+            features = ["energy_requirement_mu", "energy_availability_mu"]
+            X = df[features]
+            y = df["energy_deficit"]
+            lr = LinearRegression()
+            lr.fit(X, y)
+            prediction = lr.predict(input_df)[0]
+            st.success(f"✅ Predicted Energy Deficit for {pred_state} ({pred_quarter}): **{prediction:.2f} MU**")
+
+
