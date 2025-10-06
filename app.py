@@ -55,7 +55,7 @@ div.stButton > button:hover {
 # ----------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_dataset.csv")
+    df = pd.read_csv("cleaned_dataset.xls")
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -218,3 +218,4 @@ elif menu == "🔮 Prediction":
         lr_pred.fit(X_train_reg, y_train_reg)
         pred_deficit = lr_pred.predict(input_df)[0]
         st.success(f"Predicted Energy Deficit for {pred_state}, {pred_quarter}: **{pred_deficit:.2f} MU**")
+
