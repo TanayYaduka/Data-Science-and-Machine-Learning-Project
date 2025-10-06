@@ -26,7 +26,7 @@ st.set_page_config(page_title="Energy Data ML Dashboard", layout="wide")
 # ----------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_energy_data.csv")
+    df = pd.read_csv("cleaned_dataset.xls")
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -267,5 +267,6 @@ elif section == "🔮 Prediction":
             lr.fit(X, y)
             prediction = lr.predict(input_df)[0]
             st.success(f"✅ Predicted Energy Deficit for {pred_state} ({pred_quarter}): **{prediction:.2f} MU**")
+
 
 
