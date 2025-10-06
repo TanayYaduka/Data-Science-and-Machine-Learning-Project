@@ -22,38 +22,11 @@ import json
 st.set_page_config(page_title="Energy Data ML Dashboard", layout="wide")
 
 # ----------------------------
-# Sidebar Styling
-# ----------------------------
-st.markdown("""
-    <style>
-    [data-testid="stSidebar"] {
-        background-color: #1e293b;
-        color: white;
-        font-size: 18px;
-    }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label {
-        color: white;
-    }
-    div.stButton > button:first-child {
-        background-color: #3b82f6;
-        color: white;
-        border-radius: 10px;
-        border: none;
-        padding: 0.6rem 1rem;
-    }
-    div.stButton > button:hover {
-        background-color: #2563eb;
-        color: white;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ----------------------------
 # Load Dataset
 # ----------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_dataset.xls")
+    df = pd.read_csv("cleaned_energy_data.csv")
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -80,6 +53,22 @@ section = st.sidebar.radio(
     "Go to section:",
     ["📘 Introduction", "📊 Exploratory Data Analysis", "🤖 ML Results", "🔮 Prediction"]
 )
+
+# ----------------------------
+# Global Filters (used by EDA, ML, Prediction)
+# ----------------------------
+st.sidebar.subheader("🔍 Filter Dataset")
+region_filter = st.sidebar.selectbox("Select Region:", ["All"] + sorted(df["region"].unique()))
+state_filter = st.sidebar.selectbox("Select State:", ["All"] + sorted(df["state"].unique()))
+quarter_filter = st.sidebar.selectbox("Select Quarter:", ["All"] + sorted(df["quarter"].unique()))
+
+filtered_df = df.copy()
+if region_filter != "All":
+    filtered_df = filtered_df[filtered_df["region"] == region_filter]
+if state_filter != "All":
+    filtered_df = filtered_df[filtered_df["state"] == state_filter]
+if quarter_filter != "All":
+    filtered_df = filtered_df[filtered_df["quarter"] == quarter_filter]
 
 # ----------------------------
 # Section 1: Introduction
@@ -112,6 +101,9 @@ if section == "📘 Introduction":
     }
     for col, desc in col_info.items():
         st.markdown(f"**{col}**: {desc}")
+    st.markdown("""
+    Data has been sourced from the authentic [India Data Portal](https://indiadataportal.com/p/power/r/mop-power_supply_position-st-mn-aaa).
+    """)
 
 # ----------------------------
 # Section 2: EDA
@@ -252,20 +244,6 @@ elif section == "🔮 Prediction":
         with c1:
             pred_region = st.selectbox("Select Region:", ["All"] + sorted(df["region"].unique()))
         with c2:
-            pred_state = st.selectbox("Select State:", ["All"] + sorted(df["state"].unique()))
-        with c3:
-            pred_quarter = st.selectbox("Select Quarter:", ["All"] + sorted(df["quarter"].unique()))
-
-        energy_req = st.number_input("Energy Requirement (MU)", min_value=0.0, step=100.0)
-        energy_avail = st.number_input("Energy Availability (MU)", min_value=0.0, step=100.0)
-
-        submitted = st.form_submit_button("Predict")
-        if submitted:
-            pred_input = pd.DataFrame([[energy_req, energy_avail]], columns=["energy_requirement_mu","energy_availability_mu"])
-            # Train simple linear regression on full dataset
-            X_train_lr = df[["energy_requirement_mu","energy_availability_mu"]]
-            y_train_lr = df["energy_deficit"]
-            lr_model = LinearRegression()
-            lr_model.fit(X_train_lr, y_train_lr)
-            prediction = lr_model.predict(pred_input)[0]
-            st.success(f"✅ Predicted Energy Deficit for {pred_state}, {pred_quarter}: **{prediction:.2f} MU**")
+            pred_state = st.selectbox("
+::contentReference[oaicite:0]{index=0}
+ 
