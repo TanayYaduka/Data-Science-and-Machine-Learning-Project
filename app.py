@@ -10,53 +10,52 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, mean_squared_error, r2_score
-import json
 import requests
 
 # ----------------------------
-# Page configuration
+# Page config
 # ----------------------------
 st.set_page_config(page_title="Energy Data ML Dashboard", layout="wide")
 
 # ----------------------------
-# Custom Sidebar Styling
+# Sidebar Styling
 # ----------------------------
 st.markdown("""
-    <style>
-    [data-testid="stSidebar"] {
-        background-color: #1e293b;
-        color: white;
-        font-size:18px;
-    }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label {
-        color: white;
-    }
-    [data-testid="stSidebar"] .stRadio, [data-testid="stSidebar"] .stButton {
-        background-color: #334155;
-        border-radius: 8px;
-        padding: 10px;
-        color: white;
-    }
-    div.stButton > button:first-child {
-        background-color: #3b82f6;
-        color: white;
-        border-radius: 10px;
-        border: none;
-        padding: 0.6rem 1rem;
-    }
-    div.stButton > button:hover {
-        background-color: #2563eb;
-        color: white;
-    }
-    </style>
+<style>
+[data-testid="stSidebar"] {
+    background-color: #1e293b;
+    color: white;
+    font-size:18px;
+}
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label {
+    color: white;
+}
+[data-testid="stSidebar"] .stRadio, [data-testid="stSidebar"] .stButton {
+    background-color: #334155;
+    border-radius: 8px;
+    padding: 10px;
+    color: white;
+}
+div.stButton > button:first-child {
+    background-color: #3b82f6;
+    color: white;
+    border-radius: 10px;
+    border: none;
+    padding: 0.6rem 1rem;
+}
+div.stButton > button:hover {
+    background-color: #2563eb;
+    color: white;
+}
+</style>
 """, unsafe_allow_html=True)
 
 # ----------------------------
-# Load Data
+# Load data
 # ----------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_dataset.xls")  # Only dataset needed
+    df = pd.read_csv("cleaned_dataset.csv")
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -78,22 +77,22 @@ menu = st.sidebar.radio(
 if menu == "📘 Introduction":
     st.title("📘 Introduction to the Energy Dataset")
     st.markdown("""
-    This dashboard explores India's monthly energy supply dataset.  
-    The dataset is sourced from **[India Data Portal](https://indiadataportal.com/p/power/r/mop-power_supply_position-st-mn-aaa)**.  
+This dashboard explores India's monthly energy supply dataset.  
+The dataset is sourced from **[India Data Portal](https://indiadataportal.com/p/power/r/mop-power_supply_position-st-mn-aaa)**.  
 
-    **Dataset Overview:**  
-    - **region:** Region of India (North, South, East, West, Central, North-East)  
-    - **state:** Name of the state/UT  
-    - **is_union_territory:** Boolean indicating if the state is a union territory  
-    - **month:** Month of observation  
-    - **quarter:** Financial quarter (Q1-Q4)  
-    - **energy_requirement_mu:** Energy required in million units (MU)  
-    - **energy_availability_mu:** Energy available in million units (MU)  
-    - **energy_deficit:** Deficit in energy (MU)  
-    - **gap:** Difference between requirement and availability  
+**Columns:**  
+- **region:** Region of India  
+- **state:** State/UT  
+- **is_union_territory:** Boolean flag  
+- **month:** Month of observation  
+- **quarter:** Financial quarter (Q1-Q4)  
+- **energy_requirement_mu:** Energy required (Million Units)  
+- **energy_availability_mu:** Energy available (MU)  
+- **energy_deficit:** Deficit (MU)  
+- **gap:** Requirement - Availability  
 
-    Below is a preview of the dataset:
-    """)
+**Dataset Preview:**  
+""")
     st.dataframe(df.head())
 
 # ----------------------------
@@ -101,86 +100,59 @@ if menu == "📘 Introduction":
 # ----------------------------
 elif menu == "📊 EDA":
     st.title("📊 Exploratory Data Analysis")
-    st.markdown("Interactively explore energy requirement, availability, deficit, and region-wise distribution.")
-
-    # Filters
     col1, col2, col3 = st.columns(3)
     with col1:
-        region = st.selectbox("Select Region:", ["All"] + sorted(df["region"].unique().tolist()))
+        region = st.selectbox("Select Region:", ["All"] + sorted(df["region"].unique()))
     with col2:
-        quarter = st.selectbox("Select Quarter:", ["All"] + sorted(df["quarter"].unique().tolist()))
+        quarter = st.selectbox("Select Quarter:", ["All"] + sorted(df["quarter"].unique()))
     with col3:
-        month = st.selectbox("Select Month:", ["All"] + sorted(df["month"].unique().tolist()))
+        month = st.selectbox("Select Month:", ["All"] + sorted(df["month"].unique()))
 
     filtered_df = df.copy()
-    if region != "All":
-        filtered_df = filtered_df[filtered_df["region"] == region]
-    if quarter != "All":
-        filtered_df = filtered_df[filtered_df["quarter"] == quarter]
-    if month != "All":
-        filtered_df = filtered_df[filtered_df["month"] == month]
+    if region != "All": filtered_df = filtered_df[filtered_df["region"]==region]
+    if quarter != "All": filtered_df = filtered_df[filtered_df["quarter"]==quarter]
+    if month != "All": filtered_df = filtered_df[filtered_df["month"]==month]
 
-    # Dataset preview
     st.subheader("📋 Filtered Dataset Preview")
     st.dataframe(filtered_df.head())
 
-    # Key stats
     st.subheader("📊 Key Statistics")
     st.write("Shape:", filtered_df.shape)
-    st.dataframe(filtered_df[["energy_requirement_mu", "energy_availability_mu", "energy_deficit", "gap"]].describe())
+    st.dataframe(filtered_df[["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"]].describe())
 
     # Plots
-    st.subheader("📈 Energy Requirement vs Availability (Bar Plot)")
-    fig1 = px.bar(
-        filtered_df,
-        x="month",
-        y=["energy_requirement_mu", "energy_availability_mu"],
-        barmode="group",
-        labels={"value": "Energy (MU)", "month":"Month"},
-        color_discrete_sequence=px.colors.qualitative.Bold
-    )
+    st.subheader("📈 Energy Requirement vs Availability")
+    fig1 = px.bar(filtered_df, x="month", y=["energy_requirement_mu","energy_availability_mu"],
+                  barmode="group", labels={"value":"Energy (MU)"}, color_discrete_sequence=px.colors.qualitative.Bold)
     st.plotly_chart(fig1, use_container_width=True)
 
     st.subheader("💡 Energy Deficit Distribution by Region")
     fig2 = px.box(filtered_df, x="region", y="energy_deficit", color="region",
-                  labels={"energy_deficit":"Deficit (MU)", "region":"Region"})
+                  labels={"energy_deficit":"Deficit (MU)","region":"Region"})
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Map
     st.subheader("🗺️ Energy Deficit Map of India")
     geo_url = "https://raw.githubusercontent.com/udit-001/india-maps-data/main/geojson/india.geojson"
     india_geojson = requests.get(geo_url).json()
-
     state_deficit = filtered_df.groupby("state")["energy_deficit"].sum().reset_index()
-    fig_map = px.choropleth_mapbox(
-        state_deficit,
-        geojson=india_geojson,
-        locations="state",
-        featureidkey="properties.st_nm",
-        color="energy_deficit",
-        color_continuous_scale="OrRd",
-        mapbox_style="carto-positron",
-        zoom=3.5,
-        center={"lat": 23.5937, "lon": 80.9629},
-        opacity=0.7,
-        labels={"energy_deficit":"Deficit (MU)"}
-    )
+    fig_map = px.choropleth_mapbox(state_deficit, geojson=india_geojson, locations="state",
+                                   featureidkey="properties.st_nm", color="energy_deficit",
+                                   color_continuous_scale="OrRd", mapbox_style="carto-positron",
+                                   zoom=3.5, center={"lat":23.5937,"lon":80.9629},
+                                   opacity=0.7, labels={"energy_deficit":"Deficit (MU)"})
     st.plotly_chart(fig_map, use_container_width=True)
 
 # ----------------------------
 # Section 3: ML Model Results
 # ----------------------------
 elif menu == "🤖 ML Model Results":
-    st.title("🤖 Machine Learning Model Results")
-    st.markdown("We apply ML models on the dataset to predict **deficit flag** or perform regression on energy values.")
-
-    # Common preprocessing
-    features = ["energy_requirement_mu", "energy_availability_mu", "energy_deficit", "gap"]
+    st.title("🤖 ML Model Results")
+    features = ["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"]
     X = df[features]
     y_clf = df["deficit_flag"]
     y_reg = df["energy_availability_mu"]
 
-    # Split for classification
+    # Classification split
     X_train_clf, X_test_clf, y_train_clf, y_test_clf = train_test_split(X, y_clf, test_size=0.3, random_state=42)
 
     # KNN
@@ -188,15 +160,15 @@ elif menu == "🤖 ML Model Results":
     knn.fit(X_train_clf, y_train_clf)
     y_pred_knn = knn.predict(X_test_clf)
     st.subheader("KNN Classifier")
-    st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_knn), 3))
+    st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_knn),3))
     st.text(classification_report(y_test_clf, y_pred_knn))
 
     # Naive Bayes
     nb = GaussianNB()
     nb.fit(X_train_clf, y_train_clf)
     y_pred_nb = nb.predict(X_test_clf)
-    st.subheader("Naive Bayes Classifier")
-    st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_nb), 3))
+    st.subheader("Naive Bayes")
+    st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_nb),3))
     st.text(classification_report(y_test_clf, y_pred_nb))
 
     # Linear Regression
@@ -204,27 +176,27 @@ elif menu == "🤖 ML Model Results":
     lr = LinearRegression()
     lr.fit(X_train_reg, y_train_reg)
     y_pred_lr = lr.predict(X_test_reg)
-    rmse_lr = mean_squared_error(y_test_reg.astype(float), y_pred_lr.astype(float), False)
+    rmse_lr = mean_squared_error(y_test_reg.astype(float), y_pred_lr.astype(float), squared=False)
     r2_lr = r2_score(y_test_reg, y_pred_lr)
     st.subheader("Linear Regression")
-    st.write("RMSE:", round(rmse_lr, 2))
-    st.write("R² Score:", round(r2_lr, 3))
-    st.line_chart(pd.DataFrame({"Actual": y_test_reg.values, "Predicted": y_pred_lr}))
+    st.write("RMSE:", round(rmse_lr,2))
+    st.write("R² Score:", round(r2_lr,3))
+    st.line_chart(pd.DataFrame({"Actual":y_test_reg.values,"Predicted":y_pred_lr}))
 
     # Logistic Regression
     log_reg = LogisticRegression(max_iter=1000)
     log_reg.fit(X_train_clf, y_train_clf)
     y_pred_log = log_reg.predict(X_test_clf)
     st.subheader("Logistic Regression")
-    st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_log), 3))
+    st.write("Accuracy:", round(accuracy_score(y_test_clf, y_pred_log),3))
     st.text(classification_report(y_test_clf, y_pred_log))
 
     # K-Means Clustering
     kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
     clusters = kmeans.fit_predict(X)
-    st.subheader("K-Means Clustering")
     cluster_df = X.copy()
     cluster_df["Cluster"] = clusters
+    st.subheader("K-Means Clustering")
     st.dataframe(cluster_df.head())
 
 # ----------------------------
@@ -232,23 +204,17 @@ elif menu == "🤖 ML Model Results":
 # ----------------------------
 elif menu == "🔮 Prediction":
     st.title("🔮 Predict Energy Deficit")
-    st.markdown("Enter values for a specific **State**, **Quarter**, and **Energy inputs** to predict deficit.")
+    st.markdown("Select **State**, **Quarter**, and enter energy values to predict deficit.")
 
-    # User inputs
-    col1, col2 = st.columns(2)
-    with col1:
-        pred_state = st.selectbox("Select State:", sorted(df["state"].unique()))
-    with col2:
-        pred_quarter = st.selectbox("Select Quarter:", sorted(df["quarter"].unique()))
-
+    pred_state = st.selectbox("Select State:", sorted(df["state"].unique()))
+    pred_quarter = st.selectbox("Select Quarter:", sorted(df["quarter"].unique()))
     energy_req = st.number_input("Energy Requirement (MU)", min_value=0.0, step=100.0)
     energy_avail = st.number_input("Energy Availability (MU)", min_value=0.0, step=100.0)
 
     if st.button("Predict Deficit"):
-        # Use Linear Regression model for prediction
         input_df = pd.DataFrame([[energy_req, energy_avail, energy_req - energy_avail, energy_req - energy_avail]],
                                 columns=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
-        lr = LinearRegression()
-        lr.fit(X_train_reg, y_train_reg)
-        pred_deficit = lr.predict(input_df)[0]
+        lr_pred = LinearRegression()
+        lr_pred.fit(X_train_reg, y_train_reg)
+        pred_deficit = lr_pred.predict(input_df)[0]
         st.success(f"Predicted Energy Deficit for {pred_state}, {pred_quarter}: **{pred_deficit:.2f} MU**")
