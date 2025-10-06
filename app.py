@@ -46,7 +46,7 @@ st.markdown("""
 # ----------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_energy_data.csv")  # replace with your file
+    df = pd.read_csv("cleaned_energy_data.xls")  # replace with your file
     df["gap"] = df["energy_requirement_mu"] - df["energy_availability_mu"]
     df["deficit_flag"] = (df["energy_deficit"] > 0).astype(int)
     return df
@@ -195,3 +195,4 @@ elif menu == "🔮 Prediction":
             input_df = pd.DataFrame([[energy_req, energy_avail]], columns=["energy_requirement_mu", "energy_availability_mu"])
             prediction = model.predict(input_df)[0]
             st.success(f"✅ Predicted Energy Deficit: **{prediction:.2f} MU**")
+
