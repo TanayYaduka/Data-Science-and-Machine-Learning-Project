@@ -238,30 +238,30 @@ elif page == "📊 EDA":
 # Page 3: ML Models (independent of EDA filters)
 # ----------------------------
 elif page == "🤖 ML Models":
-    st.title("🤖 Machine Learning Models and Results (Seasonality Aware)")
+    st.title("🤖 Machine Learning Models and Results (Seasonality-Aware)")
     st.markdown("""
     Models are trained on the **full cleaned dataset** (no filters).  
     Regression models are tested **with and without quarter features** to see the impact of seasonality.
     """)
 
-    model_opts = st.multiselect("Select models:", 
-                                ["Linear Regression (Regression)", 
-                                 "Decision Tree (Regression)",
-                                 "Random Forest (Regression)",
-                                 "Gradient Boosting (Regression)",
-                                 "XGBoost (Regression)"],
-                                default=["Linear Regression (Regression)", "Random Forest (Regression)"])
+    model_opts = st.multiselect("Select regression models:", 
+                                ["Linear Regression", 
+                                 "Decision Tree",
+                                 "Random Forest",
+                                 "Gradient Boosting",
+                                 "XGBoost"],
+                                default=["Linear Regression", "Random Forest"])
 
     # --- Prepare dataset ---
     df_ml = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
     df_ml["quarter"] = df_ml["quarter"].astype("category")
 
-    # Base features
+    # Base regression features
     base_features = ["energy_requirement_mu","energy_availability_mu","gap"]
     X_base = df_ml[base_features]
     y_reg = df_ml["energy_deficit"].astype(float)
 
-    # Seasonality-aware features (one-hot encode quarters)
+    # Seasonality-aware features (one-hot encode quarter)
     df_season = pd.get_dummies(df_ml, columns=["quarter"], drop_first=True)
     seasonal_features = base_features + [col for col in df_season.columns if col.startswith("quarter_")]
     X_season = df_season[seasonal_features]
@@ -270,18 +270,16 @@ elif page == "🤖 ML Models":
     Xtr_base, Xte_base, ytr_base, yte_base = train_test_split(X_base, y_reg, test_size=0.3, random_state=42)
     Xtr_season, Xte_season, ytr_season, yte_season = train_test_split(X_season, y_reg, test_size=0.3, random_state=42)
 
-    # Helper RMSE function
+    # --- Helper RMSE function ---
     def safe_rmse(y_true, y_pred):
-        y_true_arr = np.array(y_true, dtype=float).ravel()
-        y_pred_arr = np.array(y_pred, dtype=float).ravel()
-        mse = np.mean((y_true_arr - y_pred_arr) ** 2)
-        return np.sqrt(mse)
+        return np.sqrt(np.mean((np.array(y_true, dtype=float).ravel() - np.array(y_pred, dtype=float).ravel()) ** 2))
 
     # Import regression models
     from sklearn.tree import DecisionTreeRegressor
     from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
     from xgboost import XGBRegressor
     import matplotlib.pyplot as plt
+    import plotly.express as px
 
     regression_models = {
         "Linear Regression": LinearRegression(),
@@ -295,46 +293,98 @@ elif page == "🤖 ML Models":
 
     for name, model in regression_models.items():
         if name in model_opts:
-            st.subheader(f"{name} (Base Features)")
+            st.markdown(f"---\n### {name}")
+
+            # Base model
             model.fit(Xtr_base, ytr_base)
             preds_base = model.predict(Xte_base)
             rmse_base = safe_rmse(yte_base, preds_base)
             r2_base = r2_score(yte_base, preds_base)
-            st.write(f"RMSE: {rmse_base:.3f} | R²: {r2_base:.3f}")
 
-            # Plot predicted vs actual
-            fig, ax = plt.subplots()
-            ax.scatter(yte_base, preds_base, alpha=0.7, color='teal')
-            ax.plot([yte_base.min(), yte_base.max()], [yte_base.min(), yte_base.max()], 'r--')
-            ax.set_xlabel("Actual Energy Deficit")
-            ax.set_ylabel("Predicted Energy Deficit")
-            ax.set_title(f"Predicted vs Actual ({name} - Base)")
-            st.pyplot(fig)
-
-            # Seasonality-aware
-            st.subheader(f"{name} (Seasonality-Aware)")
+            # Seasonality-aware model
             model.fit(Xtr_season, ytr_season)
             preds_season = model.predict(Xte_season)
             rmse_season = safe_rmse(yte_season, preds_season)
             r2_season = r2_score(yte_season, preds_season)
-            st.write(f"RMSE: {rmse_season:.3f} | R²: {r2_season:.3f}")
 
-            # Plot predicted vs actual (seasonality-aware)
-            fig2, ax2 = plt.subplots()
-            ax2.scatter(yte_season, preds_season, alpha=0.7, color='orange')
-            ax2.plot([yte_season.min(), yte_season.max()], [yte_season.min(), yte_season.max()], 'r--')
-            ax2.set_xlabel("Actual Energy Deficit")
-            ax2.set_ylabel("Predicted Energy Deficit")
-            ax2.set_title(f"Predicted vs Actual ({name} - Seasonality)")
-            st.pyplot(fig2)
+            # Display metrics
+            st.write(f"**Base Features:** RMSE = {rmse_base:.3f} | R² = {r2_base:.3f}")
+            st.write(f"**Seasonality-Aware:** RMSE = {rmse_season:.3f} | R² = {r2_season:.3f}")
 
             # Store results
             results_list.append([name, round(rmse_base,3), round(r2_base,3), round(rmse_season,3), round(r2_season,3)])
+
+            # Plot predicted vs actual (side-by-side using Plotly)
+            df_plot = pd.DataFrame({
+                "Actual_Base": yte_base,
+                "Predicted_Base": preds_base,
+                "Actual_Season": yte_season,
+                "Predicted_Season": preds_season
+            })
+
+            fig = px.scatter(df_plot, x="Actual_Base", y="Predicted_Base", opacity=0.7,
+                             labels={"Actual_Base":"Actual Energy Deficit","Predicted_Base":"Predicted (Base)"},
+                             title=f"{name}: Actual vs Predicted (Base)")
+            fig.add_scatter(x=df_plot["Actual_Season"], y=df_plot["Predicted_Season"], mode='markers',
+                            name="Predicted (Seasonality)", marker_color='orange')
+            fig.add_scatter(x=[df_plot["Actual_Base"].min(), df_plot["Actual_Base"].max()],
+                            y=[df_plot["Actual_Base"].min(), df_plot["Actual_Base"].max()],
+                            mode='lines', line=dict(color='red', dash='dash'), name='Ideal')
+            st.plotly_chart(fig, use_container_width=True)
 
     # Show summary table
     if results_list:
         st.write("### 📊 Regression Model Comparison (Base vs Seasonality-Aware)")
         st.dataframe(pd.DataFrame(results_list, columns=["Model","RMSE_Base","R2_Base","RMSE_Season","R2_Season"]))
+
+    # ----------------------------
+    # Classification Models
+    # ----------------------------
+    st.markdown("---\n### Classification Models (deficit_flag)")
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.linear_model import LogisticRegression
+
+    X_clf = df_ml[base_features]
+    y_clf = df_ml["deficit_flag"].astype(int)
+    Xtr_clf, Xte_clf, ytr_clf, yte_clf = train_test_split(X_clf, y_clf, test_size=0.3, random_state=42)
+
+    # KNN
+    knn = KNeighborsClassifier(n_neighbors=5)
+    knn.fit(Xtr_clf, ytr_clf)
+    pred_knn = knn.predict(Xte_clf)
+    st.subheader("K-Nearest Neighbors")
+    st.write("Accuracy:", round(accuracy_score(yte_clf, pred_knn), 3))
+    st.text(classification_report(yte_clf, pred_knn))
+
+    # Naive Bayes
+    nb = GaussianNB()
+    nb.fit(Xtr_clf, ytr_clf)
+    pred_nb = nb.predict(Xte_clf)
+    st.subheader("Gaussian Naive Bayes")
+    st.write("Accuracy:", round(accuracy_score(yte_clf, pred_nb), 3))
+    st.text(classification_report(yte_clf, pred_nb))
+
+    # Logistic Regression
+    logr = LogisticRegression(max_iter=1000)
+    logr.fit(Xtr_clf, ytr_clf)
+    pred_logr = logr.predict(Xte_clf)
+    st.subheader("Logistic Regression")
+    st.write("Accuracy:", round(accuracy_score(yte_clf, pred_logr), 3))
+    st.text(classification_report(yte_clf, pred_logr))
+
+    # ----------------------------
+    # Clustering
+    # ----------------------------
+    st.markdown("---\n### K-Means Clustering")
+    from sklearn.cluster import KMeans
+    X_cluster = df_ml[base_features]
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    clusters = kmeans.fit_predict(X_cluster)
+    df_cluster = X_cluster.copy()
+    df_cluster["Cluster"] = clusters
+    st.dataframe(df_cluster.head())
+
 
 
 # ----------------------------
@@ -412,6 +462,7 @@ elif page == "🔮 Prediction":
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
         
+
 
 
 
