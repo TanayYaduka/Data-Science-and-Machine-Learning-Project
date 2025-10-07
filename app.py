@@ -26,7 +26,7 @@ except ImportError:
 # ----------------------------
 # Page config & simple styling
 # ----------------------------
-st.set_page_config(page_title="Energy Data ML Dashboard", layout="wide")
+st.set_page_config(page_title="Energy Data Dashboard", layout="wide")
 
 st.markdown("""
 <style>
@@ -115,6 +115,15 @@ try:
     india_geo, featureidkey = load_geojson(geo_url)
 except Exception:
     india_geo, featureidkey = None, None
+
+# ----------------------------
+# Main title / dashboard header
+# ----------------------------
+st.markdown("""
+<h1 style='text-align: center; color: #2563eb;'>⚡ Energy Data Dashboard</h1>
+<p style='text-align: center; font-size: 18px;'>Explore energy deficits, seasonality trends, and predictive models across India</p>
+""", unsafe_allow_html=True)
+
 
 # ----------------------------
 # Sidebar navigation (Styled & Larger Font)
@@ -564,6 +573,7 @@ elif page == "🔮 Prediction":
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
         
+
 
 
 
