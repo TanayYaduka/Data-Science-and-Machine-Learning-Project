@@ -4,6 +4,7 @@ numpy
 scikit-learn
 matplotlib
 seaborn
+xgboost
 
 # Streamlit App
 streamlit
@@ -11,3 +12,4 @@ pyarrow
 
 # Optional (for PCA visualization and scaling)
 plotly
+
