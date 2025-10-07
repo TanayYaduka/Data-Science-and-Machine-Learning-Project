@@ -117,10 +117,59 @@ except Exception:
     india_geo, featureidkey = None, None
 
 # ----------------------------
-# Sidebar navigation
+# Sidebar navigation (Styled)
 # ----------------------------
-st.sidebar.title("⚡ Navigation")
-page = st.sidebar.radio("Go to:", ["📘 Dataset Description", "📊 EDA", "🤖 ML Models", "🔮 Prediction"])
+st.sidebar.markdown("""
+<style>
+/* Sidebar background and text */
+[data-testid="stSidebar"] {
+    background-color: #1e293b;
+    color: white;
+}
+
+/* Sidebar header */
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, label {
+    color: white;
+}
+
+/* Radio buttons container */
+[data-testid="stSidebar"] .stRadio {
+    background-color: #334155;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 5px;
+}
+
+/* Individual radio buttons */
+div.stRadio > div > label {
+    font-size: 18px;
+    padding: 8px 12px;
+    display: block;
+    border-radius: 8px;
+    margin-bottom: 3px;
+    background-color: #334155;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+/* Hover effect for buttons */
+div.stRadio > div > label:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Sidebar title with emoji
+st.sidebar.markdown("## ⚡ Navigation Panel")
+
+# Styled radio buttons with icons
+page = st.sidebar.radio(
+    "Go to:", 
+    ["📘 Dataset Description", "📊 EDA", "🤖 ML Models", "🔮 Prediction"]
+)
+
 
 # ----------------------------
 # Page 1: Dataset Description
@@ -515,6 +564,7 @@ elif page == "🔮 Prediction":
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
         
+
 
 
 
