@@ -117,7 +117,7 @@ except Exception:
     india_geo, featureidkey = None, None
 
 # ----------------------------
-# Sidebar navigation (Styled)
+# Sidebar navigation (Styled & Larger Font)
 # ----------------------------
 st.sidebar.markdown("""
 <style>
@@ -140,13 +140,14 @@ st.sidebar.markdown("""
     margin-bottom: 5px;
 }
 
-/* Individual radio buttons */
+/* Individual radio buttons - larger font */
 div.stRadio > div > label {
-    font-size: 18px;
-    padding: 8px 12px;
+    font-size: 22px;  /* increased font size */
+    font-weight: bold; /* make it bold */
+    padding: 12px 16px;
     display: block;
-    border-radius: 8px;
-    margin-bottom: 3px;
+    border-radius: 10px;
+    margin-bottom: 5px;
     background-color: #334155;
     color: white;
     cursor: pointer;
@@ -164,12 +165,11 @@ div.stRadio > div > label:hover {
 # Sidebar title with emoji
 st.sidebar.markdown("## ⚡ Navigation Panel")
 
-# Styled radio buttons with icons
+# Styled radio buttons
 page = st.sidebar.radio(
     "Go to:", 
     ["📘 Dataset Description", "📊 EDA", "🤖 ML Models", "🔮 Prediction"]
 )
-
 
 # ----------------------------
 # Page 1: Dataset Description
@@ -564,6 +564,7 @@ elif page == "🔮 Prediction":
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
         
+
 
 
 
