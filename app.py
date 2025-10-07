@@ -428,5 +428,6 @@ elif page == "🔮 Prediction":
         else:
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
-        st.caption("Model trained on full dataset. Seasonal insights provided based on historical state-quarter patterns.")
+        
+
 
