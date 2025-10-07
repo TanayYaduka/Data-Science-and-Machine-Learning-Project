@@ -17,6 +17,12 @@ from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, mean_squared_error, r2_score
 
+try:
+    from xgboost import XGBRegressor
+    xgb_available = True
+except ImportError:
+    xgb_available = False
+    
 # ----------------------------
 # Page config & simple styling
 # ----------------------------
@@ -410,5 +416,6 @@ elif page == "🔮 Prediction":
             st.info("☀️ Higher energy deficit likely due to summer season (peak demand).")
         else:
             st.info("🍃 Moderate energy demand period detected.")
+
 
 
