@@ -355,16 +355,15 @@ elif page == "🤖 ML Models":
         st.dataframe(df_cluster.head())
 
 # ----------------------------
-# Page 4: Prediction (user inputs)
+# Page 4: Prediction (user inputs with seasonal check)
 # ----------------------------
 elif page == "🔮 Prediction":
-    st.title("🔮 Predict Energy Deficit / Surplus")
+    st.title("🔮 Predict Energy Deficit / Surplus (Seasonality Aware)")
     st.markdown("""
-    This prediction uses models trained on the **full dataset** (no EDA filters).  
-    Choose the model, provide inputs, and see if the state is likely to have **deficit** or **surplus**.
+    This prediction uses models trained on the **full dataset**.  
+    You can provide inputs, select a model, and check **seasonal energy patterns**.
     """)
 
-    # User selects state, quarter, and model
     col1, col2, col3 = st.columns(3)
     with col1:
         state_in = st.selectbox("State", sorted(df["state"].dropna().unique()))
@@ -385,27 +384,25 @@ elif page == "🔮 Prediction":
             "Energy Requirement (MU)", 
             min_value=0.0, 
             value=float(df["energy_requirement_mu"].median()), 
-            step=100.0
+            step=50.0
         )
     with nr2:
         avail_in = st.number_input(
             "Energy Availability (MU)", 
             min_value=0.0, 
             value=float(df["energy_availability_mu"].median()), 
-            step=100.0
+            step=50.0
         )
 
     if st.button("Predict"):
-        # Prepare dataset for training
+        # Train model on full dataset
         df_train = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
         X_full = df_train[["energy_requirement_mu","energy_availability_mu","gap"]]
         y_full = df_train["energy_deficit"].astype(float)
-
-        # Input gap
         gap_in = req_in - avail_in
         x_input = np.array([[req_in, avail_in, gap_in]])
 
-        # Train selected model
+        # Train chosen model
         if model_choice == "Linear Regression":
             model = LinearRegression().fit(X_full, y_full)
         elif model_choice == "Random Forest Regressor":
@@ -415,14 +412,21 @@ elif page == "🔮 Prediction":
         elif model_choice == "Gradient Boosting Regressor":
             model = GradientBoostingRegressor(random_state=42).fit(X_full, y_full)
 
-        # Predict
+        # Predict deficit/surplus
         pred_val = model.predict(x_input)[0]
 
-        # Display prediction with interpretation
-        if pred_val > 0:
-            st.error(f"⚠️ Predicted Energy Deficit for {state_in} ({quarter_in}): {pred_val:.2f} MU")
-        else:
-            st.success(f"✅ Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
+        # ---- Seasonal check ----
+        seasonal_median = df[(df["state"]==state_in) & (df["quarter"]==quarter_in)]["energy_requirement_mu"].median()
+        if req_in > seasonal_median * 1.2:  # 20% above typical
+            st.warning(f"⚠️ Energy requirement is unusually high for {state_in} in {quarter_in} (Expected ~{seasonal_median:.1f} MU).")
+        elif req_in < seasonal_median * 0.8:  # 20% below typical
+            st.info(f"ℹ️ Energy requirement is unusually low for {state_in} in {quarter_in} (Expected ~{seasonal_median:.1f} MU).")
 
-        st.caption("Model trained on full dataset. Negative value indicates surplus energy available.")
+        # ---- Display predicted deficit/surplus ----
+        if pred_val > 0:
+            st.error(f"Predicted Energy Deficit for {state_in} ({quarter_in}): {pred_val:.2f} MU")
+        else:
+            st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
+
+        st.caption("Model trained on full dataset. Seasonal insights provided based on historical state-quarter patterns.")
 
