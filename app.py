@@ -257,9 +257,10 @@ elif page == "🤖 ML Models":
 
     # Helper to compute safe RMSE
     def safe_rmse(y_true, y_pred):
-        y_true_arr = np.array(y_true).astype(float).ravel()
-        y_pred_arr = np.array(y_pred).astype(float).ravel()
-        return mean_squared_error(y_true_arr, y_pred_arr, squared=False)
+        y_true_arr = np.array(y_true, dtype=float).ravel()
+        y_pred_arr = np.array(y_pred, dtype=float).ravel()
+        mse = np.mean((y_true_arr - y_pred_arr) ** 2)
+        return np.sqrt(mse)
 
     # Run selected models
     if "Linear Regression (regression)" in model_opts:
@@ -360,3 +361,4 @@ elif page == "🔮 Prediction":
 # ----------------------------
 # End
 # ----------------------------
+
