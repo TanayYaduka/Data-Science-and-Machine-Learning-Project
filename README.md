@@ -12,6 +12,13 @@ It includes **Exploratory Data Analysis (EDA)**, **seasonality insights**, and m
 
 ---
 
+
+## 🌐 Live Demo
+
+Check out the deployed app here: [Energy Analysis App](https://data-science-and-machine-learning-project-wg4ecb9cgbu8hejfmbdq.streamlit.app/)
+
+---
+
 ## 🚀 Features
 
 ✅ Load and explore the dataset interactively  
