@@ -234,131 +234,177 @@ elif page == "🤖 ML Models":
     st.markdown("Models are trained on the **full cleaned dataset** (no filters). Choose which models to run:")
 
     model_opts = st.multiselect("Select models:", 
-                                ["Linear Regression (regression)", 
-                                 "Random Forest Regressor (regression)",
-                                 "KNN (classification deficit_flag)",
-                                 "Naive Bayes (classification deficit_flag)",
-                                 "Logistic Regression (classification deficit_flag)",
-                                 "K-Means (clustering)"],
-                                default=["Linear Regression (regression)", "KNN (classification deficit_flag)"])
+                                ["Linear Regression (Regression)", 
+                                 "Decision Tree (Regression)",
+                                 "Random Forest (Regression)",
+                                 "Gradient Boosting (Regression)",
+                                 "XGBoost (Regression)",
+                                 "KNN (Classification deficit_flag)",
+                                 "Naive Bayes (Classification deficit_flag)",
+                                 "Logistic Regression (Classification deficit_flag)",
+                                 "K-Means (Clustering)"],
+                                default=["Linear Regression (Regression)", "Random Forest (Regression)"])
 
-    # Prepare training data (drop NaNs in important columns)
+    # --- Prepare the dataset ---
     df_ml = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
-    # Regression features/target
-    X_reg = df_ml[["energy_requirement_mu","energy_availability_mu","gap"]]
+    df_ml["quarter"] = df_ml["quarter"].astype("category")
+
+    # --- One-hot encode quarter for seasonal learning ---
+    df_ml = pd.get_dummies(df_ml, columns=["quarter"], drop_first=True)
+
+    # --- Regression features/target ---
+    X_reg = df_ml[["energy_requirement_mu","energy_availability_mu","gap"] + 
+                  [col for col in df_ml.columns if col.startswith("quarter_")]]
     y_reg = df_ml["energy_deficit"].astype(float)
-    # Classification features/target
+
+    # --- Classification features/target ---
     X_clf = X_reg.copy()
     y_clf = df_ml["deficit_flag"].astype(int)
 
-    # Train-test splits
+    # --- Train-test splits ---
     Xtr_reg, Xte_reg, ytr_reg, yte_reg = train_test_split(X_reg, y_reg, test_size=0.3, random_state=42)
     Xtr_clf, Xte_clf, ytr_clf, yte_clf = train_test_split(X_clf, y_clf, test_size=0.3, random_state=42)
 
-    # Helper to compute safe RMSE
+    # --- Helper RMSE function ---
     def safe_rmse(y_true, y_pred):
         y_true_arr = np.array(y_true, dtype=float).ravel()
         y_pred_arr = np.array(y_pred, dtype=float).ravel()
         mse = np.mean((y_true_arr - y_pred_arr) ** 2)
         return np.sqrt(mse)
 
-    # Run selected models
-    if "Linear Regression (regression)" in model_opts:
-        st.subheader("Linear Regression (predict energy_deficit)")
-        lr = LinearRegression()
-        lr.fit(Xtr_reg, ytr_reg)
-        pred_lr = lr.predict(Xte_reg)
-        rmse = safe_rmse(yte_reg, pred_lr)
-        r2 = r2_score(yte_reg.astype(float), pred_lr.astype(float))
-        st.write(f"RMSE: {rmse:.3f}   |   R²: {r2:.3f}")
-        # show actual vs predicted sample
-        comp = pd.DataFrame({"Actual": yte_reg.values, "Predicted": pred_lr})
-        st.dataframe(comp.head(8))
+    # --- Train and Evaluate Regression Models ---
+    from sklearn.tree import DecisionTreeRegressor
+    from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+    from xgboost import XGBRegressor
+    import matplotlib.pyplot as plt
 
-    if "Random Forest Regressor (regression)" in model_opts:
-        st.subheader("Random Forest Regressor")
-        rf = RandomForestRegressor(random_state=42)
-        rf.fit(Xtr_reg, ytr_reg)
-        pred_rf = rf.predict(Xte_reg)
-        rmse_rf = safe_rmse(yte_reg, pred_rf)
-        r2_rf = r2_score(yte_reg.astype(float), pred_rf.astype(float))
-        st.write(f"RMSE: {rmse_rf:.3f}   |   R²: {r2_rf:.3f}")
+    regression_models = {
+        "Linear Regression (Regression)": LinearRegression(),
+        "Decision Tree (Regression)": DecisionTreeRegressor(random_state=42),
+        "Random Forest (Regression)": RandomForestRegressor(random_state=42),
+        "Gradient Boosting (Regression)": GradientBoostingRegressor(random_state=42),
+        "XGBoost (Regression)": XGBRegressor(random_state=42, n_estimators=200, learning_rate=0.1)
+    }
 
-    if "KNN (classification deficit_flag)" in model_opts:
-        st.subheader("K-Nearest Neighbors (classify deficit_flag)")
+    model_results = []
+
+    for name, model in regression_models.items():
+        if name in model_opts:
+            st.subheader(name)
+            model.fit(Xtr_reg, ytr_reg)
+            preds = model.predict(Xte_reg)
+            rmse = safe_rmse(yte_reg, preds)
+            r2 = r2_score(yte_reg, preds)
+            model_results.append([name, round(rmse, 3), round(r2, 3)])
+            st.write(f"RMSE: {rmse:.3f} | R²: {r2:.3f}")
+
+            # Predicted vs Actual Plot
+            fig, ax = plt.subplots()
+            ax.scatter(yte_reg, preds, alpha=0.7, color='teal')
+            ax.plot([yte_reg.min(), yte_reg.max()], [yte_reg.min(), yte_reg.max()], 'r--')
+            ax.set_xlabel("Actual Energy Deficit")
+            ax.set_ylabel("Predicted Energy Deficit")
+            ax.set_title(f"Predicted vs Actual: {name}")
+            st.pyplot(fig)
+
+    # Display results table
+    if model_results:
+        st.write("### 📊 Regression Model Summary")
+        st.dataframe(pd.DataFrame(model_results, columns=["Model", "RMSE", "R²"]))
+
+    # --- Classification Models ---
+    if "KNN (Classification deficit_flag)" in model_opts:
+        st.subheader("KNN Classifier (deficit_flag)")
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(Xtr_clf, ytr_clf)
         pred_knn = knn.predict(Xte_clf)
         st.write("Accuracy:", round(accuracy_score(yte_clf, pred_knn), 3))
         st.text(classification_report(yte_clf, pred_knn))
 
-    if "Naive Bayes (classification deficit_flag)" in model_opts:
-        st.subheader("Gaussian Naive Bayes (classify deficit_flag)")
+    if "Naive Bayes (Classification deficit_flag)" in model_opts:
+        st.subheader("Gaussian Naive Bayes (deficit_flag)")
         nb = GaussianNB()
         nb.fit(Xtr_clf, ytr_clf)
         pred_nb = nb.predict(Xte_clf)
         st.write("Accuracy:", round(accuracy_score(yte_clf, pred_nb), 3))
         st.text(classification_report(yte_clf, pred_nb))
 
-    if "Logistic Regression (classification deficit_flag)" in model_opts:
-        st.subheader("Logistic Regression (classify deficit_flag)")
+    if "Logistic Regression (Classification deficit_flag)" in model_opts:
+        st.subheader("Logistic Regression (deficit_flag)")
         logr = LogisticRegression(max_iter=1000)
         logr.fit(Xtr_clf, ytr_clf)
         pred_logr = logr.predict(Xte_clf)
         st.write("Accuracy:", round(accuracy_score(yte_clf, pred_logr), 3))
         st.text(classification_report(yte_clf, pred_logr))
 
-    if "K-Means (clustering)" in model_opts:
-        st.subheader("K-Means Clustering (unsupervised)")
+    # --- Clustering ---
+    if "K-Means (Clustering)" in model_opts:
+        st.subheader("K-Means Clustering")
         kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
         clusters = kmeans.fit_predict(X_reg)
-        cluster_preview = X_reg.copy()
-        cluster_preview["Cluster"] = clusters
-        st.dataframe(cluster_preview.head())
+        df_cluster = X_reg.copy()
+        df_cluster["Cluster"] = clusters
+        st.dataframe(df_cluster.head())
 
 # ----------------------------
-# Page 4: Prediction (user inputs)
+# Page 4: Prediction (User Inputs)
 # ----------------------------
 elif page == "🔮 Prediction":
-    st.title("🔮 Predict Energy Deficit (User Input)")
-    st.markdown("This prediction uses models trained on the *full dataset* (no EDA filters). Choose the model and provide inputs.")
+    st.title("🔮 Predict Energy Deficit (User Input Based)")
+    st.markdown("Predict the **Energy Deficit (MU)** based on user input and chosen ML model.")
 
-    col1, col2, col3 = st.columns(3)
+    # --- Model selection ---
+    model_choice = st.selectbox("Select Model for Prediction", 
+                                ["Linear Regression", "Decision Tree", "Random Forest", "Gradient Boosting", "XGBoost"])
+
+    # --- User Inputs ---
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        state_in = st.selectbox("State", sorted(df["state"].dropna().unique()))
+        state_in = st.selectbox("State", sorted(df["state"].unique()))
     with col2:
-        quarter_in = st.selectbox("Quarter", sorted(df["quarter"].dropna().unique()))
+        quarter_in = st.selectbox("Quarter", sorted(df["quarter"].unique()))
     with col3:
-        model_choice = st.selectbox("Model for prediction", ["Linear Regression", "Random Forest Regressor"])
-
-    # numeric inputs
-    nr1, nr2 = st.columns(2)
-    with nr1:
         req_in = st.number_input("Energy Requirement (MU)", min_value=0.0, value=float(df["energy_requirement_mu"].median()), step=100.0)
-    with nr2:
+    with col4:
         avail_in = st.number_input("Energy Availability (MU)", min_value=0.0, value=float(df["energy_availability_mu"].median()), step=100.0)
 
-    if st.button("Predict"):
-        # train model on full df
-        df_train = df.dropna(subset=["energy_requirement_mu", "energy_availability_mu", "energy_deficit"])
-        X_full = df_train[["energy_requirement_mu", "energy_availability_mu", "gap"]]
-        y_full = df_train["energy_deficit"].astype(float)
-
-        # Ensure gap for input
+    if st.button("Predict Energy Deficit"):
         gap_in = req_in - avail_in
-        x_input = np.array([[req_in, avail_in, gap_in]])
 
-        if model_choice == "Linear Regression":
-            model = LinearRegression().fit(X_full, y_full)
-        else:
-            model = RandomForestRegressor(random_state=42).fit(X_full, y_full)
+        # Prepare full training data
+        df_pred = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
+        df_pred["quarter"] = df_pred["quarter"].astype("category")
+        df_pred = pd.get_dummies(df_pred, columns=["quarter"], drop_first=True)
 
+        X_full = df_pred[["energy_requirement_mu","energy_availability_mu","gap"] + 
+                         [col for col in df_pred.columns if col.startswith("quarter_")]]
+        y_full = df_pred["energy_deficit"]
+
+        # Model selection
+        model_map = {
+            "Linear Regression": LinearRegression(),
+            "Decision Tree": DecisionTreeRegressor(random_state=42),
+            "Random Forest": RandomForestRegressor(random_state=42),
+            "Gradient Boosting": GradientBoostingRegressor(random_state=42),
+            "XGBoost": XGBRegressor(random_state=42, n_estimators=200)
+        }
+        model = model_map[model_choice].fit(X_full, y_full)
+
+        # Prepare input
+        x_input = pd.DataFrame({
+            "energy_requirement_mu": [req_in],
+            "energy_availability_mu": [avail_in],
+            "gap": [gap_in],
+            **{col: [1 if col == f"quarter_{quarter_in}" else 0] for col in X_full.columns if col.startswith("quarter_")}
+        })
+        x_input = x_input.reindex(columns=X_full.columns, fill_value=0)
+
+        # Prediction
         pred_val = model.predict(x_input)[0]
-        st.success(f"Predicted Energy Deficit for {state_in} ({quarter_in}): **{pred_val:.2f} MU**")
-        # give brief context
-        st.caption("Model trained on full dataset. If you want a state-specific model, filter data in EDA, export and re-train externally.")
+        st.success(f"🔋 Predicted Energy Deficit for {state_in} ({quarter_in}): **{pred_val:.2f} MU**")
 
-# ----------------------------
-# End
-# ----------------------------
-
+        # Contextual message
+        if quarter_in in ["Q2", "Q3"]:
+            st.info("☀️ Higher energy deficit likely due to summer season (peak demand).")
+        else:
+            st.info("🍃 Moderate energy demand period detected.")
