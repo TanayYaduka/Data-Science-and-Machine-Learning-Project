@@ -6,11 +6,12 @@ import plotly.express as px
 import requests
 import json
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.svm import SVR
 from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, mean_squared_error, r2_score
@@ -408,3 +409,4 @@ elif page == "🔮 Prediction":
             st.info("☀️ Higher energy deficit likely due to summer season (peak demand).")
         else:
             st.info("🍃 Moderate energy demand period detected.")
+
