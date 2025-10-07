@@ -238,121 +238,104 @@ elif page == "📊 EDA":
 # Page 3: ML Models (independent of EDA filters)
 # ----------------------------
 elif page == "🤖 ML Models":
-    st.title("🤖 Machine Learning Models and Results")
-    st.markdown("Models are trained on the **full cleaned dataset** (no filters). Choose which models to run:")
+    st.title("🤖 Machine Learning Models and Results (Seasonality Aware)")
+    st.markdown("""
+    Models are trained on the **full cleaned dataset** (no filters).  
+    Regression models are tested **with and without quarter features** to see the impact of seasonality.
+    """)
 
     model_opts = st.multiselect("Select models:", 
                                 ["Linear Regression (Regression)", 
                                  "Decision Tree (Regression)",
                                  "Random Forest (Regression)",
                                  "Gradient Boosting (Regression)",
-                                 "XGBoost (Regression)",
-                                 "KNN (Classification deficit_flag)",
-                                 "Naive Bayes (Classification deficit_flag)",
-                                 "Logistic Regression (Classification deficit_flag)",
-                                 "K-Means (Clustering)"],
+                                 "XGBoost (Regression)"],
                                 default=["Linear Regression (Regression)", "Random Forest (Regression)"])
 
-    # --- Prepare the dataset ---
+    # --- Prepare dataset ---
     df_ml = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
     df_ml["quarter"] = df_ml["quarter"].astype("category")
 
-    # --- One-hot encode quarter for seasonal learning ---
-    df_ml = pd.get_dummies(df_ml, columns=["quarter"], drop_first=True)
-
-    # --- Regression features/target ---
-    X_reg = df_ml[["energy_requirement_mu","energy_availability_mu","gap"] + 
-                  [col for col in df_ml.columns if col.startswith("quarter_")]]
+    # Base features
+    base_features = ["energy_requirement_mu","energy_availability_mu","gap"]
+    X_base = df_ml[base_features]
     y_reg = df_ml["energy_deficit"].astype(float)
 
-    # --- Classification features/target ---
-    X_clf = X_reg.copy()
-    y_clf = df_ml["deficit_flag"].astype(int)
+    # Seasonality-aware features (one-hot encode quarters)
+    df_season = pd.get_dummies(df_ml, columns=["quarter"], drop_first=True)
+    seasonal_features = base_features + [col for col in df_season.columns if col.startswith("quarter_")]
+    X_season = df_season[seasonal_features]
 
-    # --- Train-test splits ---
-    Xtr_reg, Xte_reg, ytr_reg, yte_reg = train_test_split(X_reg, y_reg, test_size=0.3, random_state=42)
-    Xtr_clf, Xte_clf, ytr_clf, yte_clf = train_test_split(X_clf, y_clf, test_size=0.3, random_state=42)
+    # Train-test split
+    Xtr_base, Xte_base, ytr_base, yte_base = train_test_split(X_base, y_reg, test_size=0.3, random_state=42)
+    Xtr_season, Xte_season, ytr_season, yte_season = train_test_split(X_season, y_reg, test_size=0.3, random_state=42)
 
-    # --- Helper RMSE function ---
+    # Helper RMSE function
     def safe_rmse(y_true, y_pred):
         y_true_arr = np.array(y_true, dtype=float).ravel()
         y_pred_arr = np.array(y_pred, dtype=float).ravel()
         mse = np.mean((y_true_arr - y_pred_arr) ** 2)
         return np.sqrt(mse)
 
-    # --- Train and Evaluate Regression Models ---
+    # Import regression models
     from sklearn.tree import DecisionTreeRegressor
     from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
     from xgboost import XGBRegressor
     import matplotlib.pyplot as plt
 
     regression_models = {
-        "Linear Regression (Regression)": LinearRegression(),
-        "Decision Tree (Regression)": DecisionTreeRegressor(random_state=42),
-        "Random Forest (Regression)": RandomForestRegressor(random_state=42),
-        "Gradient Boosting (Regression)": GradientBoostingRegressor(random_state=42),
-        "XGBoost (Regression)": XGBRegressor(random_state=42, n_estimators=200, learning_rate=0.1)
+        "Linear Regression": LinearRegression(),
+        "Decision Tree": DecisionTreeRegressor(random_state=42),
+        "Random Forest": RandomForestRegressor(random_state=42),
+        "Gradient Boosting": GradientBoostingRegressor(random_state=42),
+        "XGBoost": XGBRegressor(random_state=42, n_estimators=200, learning_rate=0.1)
     }
 
-    model_results = []
+    results_list = []
 
     for name, model in regression_models.items():
         if name in model_opts:
-            st.subheader(name)
-            model.fit(Xtr_reg, ytr_reg)
-            preds = model.predict(Xte_reg)
-            rmse = safe_rmse(yte_reg, preds)
-            r2 = r2_score(yte_reg, preds)
-            model_results.append([name, round(rmse, 3), round(r2, 3)])
-            st.write(f"RMSE: {rmse:.3f} | R²: {r2:.3f}")
+            st.subheader(f"{name} (Base Features)")
+            model.fit(Xtr_base, ytr_base)
+            preds_base = model.predict(Xte_base)
+            rmse_base = safe_rmse(yte_base, preds_base)
+            r2_base = r2_score(yte_base, preds_base)
+            st.write(f"RMSE: {rmse_base:.3f} | R²: {r2_base:.3f}")
 
-            # Predicted vs Actual Plot
+            # Plot predicted vs actual
             fig, ax = plt.subplots()
-            ax.scatter(yte_reg, preds, alpha=0.7, color='teal')
-            ax.plot([yte_reg.min(), yte_reg.max()], [yte_reg.min(), yte_reg.max()], 'r--')
+            ax.scatter(yte_base, preds_base, alpha=0.7, color='teal')
+            ax.plot([yte_base.min(), yte_base.max()], [yte_base.min(), yte_base.max()], 'r--')
             ax.set_xlabel("Actual Energy Deficit")
             ax.set_ylabel("Predicted Energy Deficit")
-            ax.set_title(f"Predicted vs Actual: {name}")
+            ax.set_title(f"Predicted vs Actual ({name} - Base)")
             st.pyplot(fig)
 
-    # Display results table
-    if model_results:
-        st.write("### 📊 Regression Model Summary")
-        st.dataframe(pd.DataFrame(model_results, columns=["Model", "RMSE", "R²"]))
+            # Seasonality-aware
+            st.subheader(f"{name} (Seasonality-Aware)")
+            model.fit(Xtr_season, ytr_season)
+            preds_season = model.predict(Xte_season)
+            rmse_season = safe_rmse(yte_season, preds_season)
+            r2_season = r2_score(yte_season, preds_season)
+            st.write(f"RMSE: {rmse_season:.3f} | R²: {r2_season:.3f}")
 
-    # --- Classification Models ---
-    if "KNN (Classification deficit_flag)" in model_opts:
-        st.subheader("KNN Classifier (deficit_flag)")
-        knn = KNeighborsClassifier(n_neighbors=5)
-        knn.fit(Xtr_clf, ytr_clf)
-        pred_knn = knn.predict(Xte_clf)
-        st.write("Accuracy:", round(accuracy_score(yte_clf, pred_knn), 3))
-        st.text(classification_report(yte_clf, pred_knn))
+            # Plot predicted vs actual (seasonality-aware)
+            fig2, ax2 = plt.subplots()
+            ax2.scatter(yte_season, preds_season, alpha=0.7, color='orange')
+            ax2.plot([yte_season.min(), yte_season.max()], [yte_season.min(), yte_season.max()], 'r--')
+            ax2.set_xlabel("Actual Energy Deficit")
+            ax2.set_ylabel("Predicted Energy Deficit")
+            ax2.set_title(f"Predicted vs Actual ({name} - Seasonality)")
+            st.pyplot(fig2)
 
-    if "Naive Bayes (Classification deficit_flag)" in model_opts:
-        st.subheader("Gaussian Naive Bayes (deficit_flag)")
-        nb = GaussianNB()
-        nb.fit(Xtr_clf, ytr_clf)
-        pred_nb = nb.predict(Xte_clf)
-        st.write("Accuracy:", round(accuracy_score(yte_clf, pred_nb), 3))
-        st.text(classification_report(yte_clf, pred_nb))
+            # Store results
+            results_list.append([name, round(rmse_base,3), round(r2_base,3), round(rmse_season,3), round(r2_season,3)])
 
-    if "Logistic Regression (Classification deficit_flag)" in model_opts:
-        st.subheader("Logistic Regression (deficit_flag)")
-        logr = LogisticRegression(max_iter=1000)
-        logr.fit(Xtr_clf, ytr_clf)
-        pred_logr = logr.predict(Xte_clf)
-        st.write("Accuracy:", round(accuracy_score(yte_clf, pred_logr), 3))
-        st.text(classification_report(yte_clf, pred_logr))
+    # Show summary table
+    if results_list:
+        st.write("### 📊 Regression Model Comparison (Base vs Seasonality-Aware)")
+        st.dataframe(pd.DataFrame(results_list, columns=["Model","RMSE_Base","R2_Base","RMSE_Season","R2_Season"]))
 
-    # --- Clustering ---
-    if "K-Means (Clustering)" in model_opts:
-        st.subheader("K-Means Clustering")
-        kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-        clusters = kmeans.fit_predict(X_reg)
-        df_cluster = X_reg.copy()
-        df_cluster["Cluster"] = clusters
-        st.dataframe(df_cluster.head())
 
 # ----------------------------
 # Page 4: Prediction (user inputs with seasonal check)
@@ -429,5 +412,6 @@ elif page == "🔮 Prediction":
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
         
+
 
 
