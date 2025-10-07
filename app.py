@@ -160,12 +160,12 @@ if page == "📘 Dataset Description":
         st.write(df["energy_availability_mu"].describe())
 
 # ----------------------------
-# Page 2: EDA
+# Page 2: EDA (Seasonality Enhanced)
 # ----------------------------
 elif page == "📊 EDA":
-    st.title("📊 Exploratory Data Analysis")
+    st.title("📊 Exploratory Data Analysis (Seasonality Enhanced)")
 
-    # filters
+    # --- Filters ---
     col1, col2, col3 = st.columns(3)
     with col1:
         sel_region = st.selectbox("Region", ["All"] + sorted(df["region"].dropna().unique().tolist()))
@@ -174,7 +174,7 @@ elif page == "📊 EDA":
     with col3:
         sel_month = st.selectbox("Month", ["All"] + sorted(df["month"].dropna().unique().tolist()))
 
-    # apply filters
+    # --- Apply filters ---
     filtered = df.copy()
     if sel_region != "All":
         filtered = filtered[filtered["region"] == sel_region]
@@ -190,9 +190,8 @@ elif page == "📊 EDA":
     st.write("Shape:", filtered.shape)
     st.dataframe(filtered[["energy_requirement_mu", "energy_availability_mu", "energy_deficit", "gap"]].describe())
 
-    # Time-series / month plot - ensure month order if possible
+    # --- Month-wise Bar Chart ---
     st.subheader("Energy Requirement vs Availability (by month)")
-    # If month values are month names, try to order them
     month_order = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     if filtered["month"].dtype == object and set(filtered["month"].unique()).issubset(set(month_order)):
         filtered["month"] = pd.Categorical(filtered["month"], categories=month_order, ordered=True)
@@ -201,16 +200,42 @@ elif page == "📊 EDA":
                  title="Monthly Requirement vs Availability (MU)")
     st.plotly_chart(fig, use_container_width=True)
 
+    # --- Month-wise Line Trend ---
+    st.subheader("Monthly Energy Trend (Seasonality)")
+    fig_trend = px.line(filtered, x="month", y=["energy_requirement_mu", "energy_availability_mu", "energy_deficit"],
+                        labels={"value":"Energy (MU)", "month":"Month"}, markers=True,
+                        title="Monthly Energy Requirement, Availability, and Deficit Trend")
+    st.plotly_chart(fig_trend, use_container_width=True)
+
+    # --- Quarter-wise Summary ---
+    st.subheader("Quarter-wise Energy Overview")
+    quarter_summary = filtered.groupby("quarter")[["energy_requirement_mu", "energy_availability_mu", "energy_deficit"]].mean().reset_index()
+    fig_quarter = px.bar(quarter_summary, x="quarter", y=["energy_requirement_mu", "energy_availability_mu", "energy_deficit"],
+                         barmode="group", labels={"value":"Energy (MU)", "quarter":"Quarter"},
+                         title="Average Energy Requirement, Availability, and Deficit per Quarter")
+    st.plotly_chart(fig_quarter, use_container_width=True)
+
+    # --- Heatmap: Quarter vs Region ---
+    st.subheader("Quarter vs Region Deficit Heatmap")
+    heat_data = filtered.groupby(["region","quarter"])["energy_deficit"].mean().reset_index()
+    fig_heat = px.imshow(
+        heat_data.pivot(index="region", columns="quarter", values="energy_deficit"),
+        color_continuous_scale="OrRd",
+        labels=dict(x="Quarter", y="Region", color="Avg Deficit (MU)"),
+        title="Average Energy Deficit per Region per Quarter"
+    )
+    st.plotly_chart(fig_heat, use_container_width=True)
+
+    # --- Deficit distribution by region ---
     st.subheader("Energy Deficit distribution by region")
     fig2 = px.box(filtered, x="region", y="energy_deficit", color="region",
                   labels={"energy_deficit":"Deficit (MU)"}, title="Deficit distribution")
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Map
+    # --- Map ---
     if india_geo is not None:
         st.subheader("State-wise Energy Deficit (choropleth)")
         state_sum = filtered.groupby("state", dropna=False)["energy_deficit"].sum().reset_index()
-        # some state names may not match geojson; user should ensure state names are consistent
         try:
             fig_map = px.choropleth_mapbox(
                 state_sum,
@@ -233,6 +258,19 @@ elif page == "📊 EDA":
             st.write("Example state names in dataset:", state_sum["state"].unique()[:10])
     else:
         st.info("India geojson not available; map disabled.")
+
+    # --- Seasonality Alerts ---
+    st.subheader("Seasonality Alerts")
+    quarter_median = df.groupby("quarter")["energy_requirement_mu"].median()
+    user_quarter = sel_quarter if sel_quarter != "All" else None
+    if user_quarter:
+        req_median = quarter_median[user_quarter]
+        mean_req = filtered["energy_requirement_mu"].mean()
+        if mean_req > 1.2*req_median:
+            st.warning(f"⚠️ Energy requirement in {user_quarter} is unusually high ({mean_req:.1f} MU) compared to historical median ({req_median:.1f} MU).")
+        elif mean_req < 0.8*req_median:
+            st.info(f"ℹ️ Energy requirement in {user_quarter} is unusually low ({mean_req:.1f} MU) compared to historical median ({req_median:.1f} MU).")
+
 
 # ----------------------------
 # Page 3: ML Models (independent of EDA filters)
@@ -462,6 +500,7 @@ elif page == "🔮 Prediction":
             st.success(f"Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
         
+
 
 
 
