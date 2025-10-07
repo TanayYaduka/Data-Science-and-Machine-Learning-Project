@@ -11,6 +11,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.svm import SVR
 from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
@@ -409,4 +410,5 @@ elif page == "🔮 Prediction":
             st.info("☀️ Higher energy deficit likely due to summer season (peak demand).")
         else:
             st.info("🍃 Moderate energy demand period detected.")
+
 
