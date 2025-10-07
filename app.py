@@ -355,67 +355,74 @@ elif page == "🤖 ML Models":
         st.dataframe(df_cluster.head())
 
 # ----------------------------
-# Page 4: Prediction (User Inputs)
+# Page 4: Prediction (user inputs)
 # ----------------------------
 elif page == "🔮 Prediction":
-    st.title("🔮 Predict Energy Deficit (User Input Based)")
-    st.markdown("Predict the **Energy Deficit (MU)** based on user input and chosen ML model.")
+    st.title("🔮 Predict Energy Deficit / Surplus")
+    st.markdown("""
+    This prediction uses models trained on the **full dataset** (no EDA filters).  
+    Choose the model, provide inputs, and see if the state is likely to have **deficit** or **surplus**.
+    """)
 
-    # --- Model selection ---
-    model_choice = st.selectbox("Select Model for Prediction", 
-                                ["Linear Regression", "Decision Tree", "Random Forest", "Gradient Boosting", "XGBoost"])
-
-    # --- User Inputs ---
-    col1, col2, col3, col4 = st.columns(4)
+    # User selects state, quarter, and model
+    col1, col2, col3 = st.columns(3)
     with col1:
-        state_in = st.selectbox("State", sorted(df["state"].unique()))
+        state_in = st.selectbox("State", sorted(df["state"].dropna().unique()))
     with col2:
-        quarter_in = st.selectbox("Quarter", sorted(df["quarter"].unique()))
+        quarter_in = st.selectbox("Quarter", sorted(df["quarter"].dropna().unique()))
     with col3:
-        req_in = st.number_input("Energy Requirement (MU)", min_value=0.0, value=float(df["energy_requirement_mu"].median()), step=100.0)
-    with col4:
-        avail_in = st.number_input("Energy Availability (MU)", min_value=0.0, value=float(df["energy_availability_mu"].median()), step=100.0)
+        model_choice = st.selectbox("Model for prediction", [
+            "Linear Regression", 
+            "Random Forest Regressor", 
+            "Decision Tree Regressor", 
+            "Gradient Boosting Regressor"
+        ])
 
-    if st.button("Predict Energy Deficit"):
+    # Numeric inputs
+    nr1, nr2 = st.columns(2)
+    with nr1:
+        req_in = st.number_input(
+            "Energy Requirement (MU)", 
+            min_value=0.0, 
+            value=float(df["energy_requirement_mu"].median()), 
+            step=100.0
+        )
+    with nr2:
+        avail_in = st.number_input(
+            "Energy Availability (MU)", 
+            min_value=0.0, 
+            value=float(df["energy_availability_mu"].median()), 
+            step=100.0
+        )
+
+    if st.button("Predict"):
+        # Prepare dataset for training
+        df_train = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
+        X_full = df_train[["energy_requirement_mu","energy_availability_mu","gap"]]
+        y_full = df_train["energy_deficit"].astype(float)
+
+        # Input gap
         gap_in = req_in - avail_in
+        x_input = np.array([[req_in, avail_in, gap_in]])
 
-        # Prepare full training data
-        df_pred = df.dropna(subset=["energy_requirement_mu","energy_availability_mu","energy_deficit","gap"])
-        df_pred["quarter"] = df_pred["quarter"].astype("category")
-        df_pred = pd.get_dummies(df_pred, columns=["quarter"], drop_first=True)
+        # Train selected model
+        if model_choice == "Linear Regression":
+            model = LinearRegression().fit(X_full, y_full)
+        elif model_choice == "Random Forest Regressor":
+            model = RandomForestRegressor(random_state=42).fit(X_full, y_full)
+        elif model_choice == "Decision Tree Regressor":
+            model = DecisionTreeRegressor(random_state=42).fit(X_full, y_full)
+        elif model_choice == "Gradient Boosting Regressor":
+            model = GradientBoostingRegressor(random_state=42).fit(X_full, y_full)
 
-        X_full = df_pred[["energy_requirement_mu","energy_availability_mu","gap"] + 
-                         [col for col in df_pred.columns if col.startswith("quarter_")]]
-        y_full = df_pred["energy_deficit"]
-
-        # Model selection
-        model_map = {
-            "Linear Regression": LinearRegression(),
-            "Decision Tree": DecisionTreeRegressor(random_state=42),
-            "Random Forest": RandomForestRegressor(random_state=42),
-            "Gradient Boosting": GradientBoostingRegressor(random_state=42),
-            "XGBoost": XGBRegressor(random_state=42, n_estimators=200)
-        }
-        model = model_map[model_choice].fit(X_full, y_full)
-
-        # Prepare input
-        x_input = pd.DataFrame({
-            "energy_requirement_mu": [req_in],
-            "energy_availability_mu": [avail_in],
-            "gap": [gap_in],
-            **{col: [1 if col == f"quarter_{quarter_in}" else 0] for col in X_full.columns if col.startswith("quarter_")}
-        })
-        x_input = x_input.reindex(columns=X_full.columns, fill_value=0)
-
-        # Prediction
+        # Predict
         pred_val = model.predict(x_input)[0]
-        st.success(f"🔋 Predicted Energy Deficit for {state_in} ({quarter_in}): **{pred_val:.2f} MU**")
 
-        # Contextual message
-        if quarter_in in ["Q2", "Q3"]:
-            st.info("☀️ Higher energy deficit likely due to summer season (peak demand).")
+        # Display prediction with interpretation
+        if pred_val > 0:
+            st.error(f"⚠️ Predicted Energy Deficit for {state_in} ({quarter_in}): {pred_val:.2f} MU")
         else:
-            st.info("🍃 Moderate energy demand period detected.")
+            st.success(f"✅ Predicted Energy Surplus for {state_in} ({quarter_in}): {abs(pred_val):.2f} MU")
 
-
+        st.caption("Model trained on full dataset. Negative value indicates surplus energy available.")
 
