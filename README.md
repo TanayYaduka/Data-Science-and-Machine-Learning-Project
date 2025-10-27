@@ -8,7 +8,6 @@ It includes **Exploratory Data Analysis (EDA)**, **seasonality insights**, and m
 - Linear Regression
 - Logistic Regression
 - K-Means Clustering
-- Decision Tree, Random Forest, Gradient Boosting, XGBoost (Regression)
 
 ---
 
